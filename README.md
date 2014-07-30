@@ -1,7 +1,7 @@
 ECStretchableHeaderView
 =======================
 
-A multi-purpose header view that you can attach to a UITableView (or any UIScrollView for that matter), allowing you to maximize the content view real state by expanding and contracting the top header upon scrolling down or up, or by delegating the decision on when to do this through a another object.
+A multi-purpose header view that you can attach to a UITableView (or any UIScrollView), allowing you to maximize the scrolling content's screen real state by expanding and contracting the top header upon scrolling down or up, or by delegating the decision on when to do this through a another object.
 
 Useful when such header isn't fully needed, but might have some buttons or some other interactive control that needs to remain visible.
 
