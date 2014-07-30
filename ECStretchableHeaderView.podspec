@@ -9,8 +9,10 @@ Pod::Spec.new do |s|
   s.author             = { "Eric Castro" => "eric@cast.ro" }
   s.social_media_url   = "http://twitter.com/_eric_castro"
   s.platform     = :ios
-  s.source       = { :git => "https://github.com/ericcastro/ECStretchableHeaderView", :tag => "v#{s.version}" }
+  s.source       = { :git => "https://github.com/ericcastro/ECStretchableHeaderView.git", :commit => "v#{s.version}" }
   s.source_files  = "ECStretchableHeaderView.{h,m}"
   s.requires_arc = true
-  s.dependency 'pop', '~> 1.0'
+  s.dependency 'pop'
+  s.ios.deployment_target = '6.0'
+
 end
