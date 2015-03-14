@@ -13,6 +13,7 @@ Pod::Spec.new do |s|
   s.source_files  = "ECStretchableHeaderView.{h,m}"
   s.requires_arc = true
   s.dependency 'pop'
+  s.dependency 'HTDelegateProxy'
   s.ios.deployment_target = '6.0'
 
 end
