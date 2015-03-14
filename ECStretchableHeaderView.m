@@ -6,6 +6,7 @@
 //  Copyright (c) 2014 cast.ro. All rights reserved.
 //
 #import <POP.h>
+#import <HTDelegateProxy.h>
 
 #import "ECStretchableHeaderView.h"
 
@@ -18,40 +19,60 @@
 
     BOOL _touchesStartedOnSelf;
 
-    UIScrollView *_attachedScrollView;
     CGFloat _inset;
+
+    HTDelegateProxy *_delegateProxy;
+    id _originalScrollViewDelegate;
+}
+- (instancetype)initWithCoder:(NSCoder *)aDecoder
+{
+    self = [super initWithCoder:aDecoder];
+    if (self) {
+        [self _setupView];
+    }
+    return self;
 }
 - (instancetype)initWithFrame:(CGRect)frame
 {
     self = [super initWithFrame:frame];
     if (self) {
-        _panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(didPan:)];
-        [self addGestureRecognizer:_panGestureRecognizer];
-        _panGestureRecognizer.delegate = self;
-
-        _tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(didTap:)];
-        [self addGestureRecognizer:_tapGestureRecognizer];
-        _tapGestureRecognizer.delegate = self;
-
-        _minHeight = 0.0;
-        _maxHeight = CGRectGetHeight(frame);
-        _touchesStartedOnSelf = NO;
-        _tapToExpand = NO;
+        [self _setupView];
     }
     return self;
+}
+
+- (void)_setupView
+{
+    _panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(didPan:)];
+    [self addGestureRecognizer:_panGestureRecognizer];
+    _panGestureRecognizer.delegate = self;
+
+    _tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(didTap:)];
+    [self addGestureRecognizer:_tapGestureRecognizer];
+    _tapGestureRecognizer.delegate = self;
+
+    self.clipsToBounds = YES;
+    self.translatesAutoresizingMaskIntoConstraints = NO;
+
+    _minHeight = 0.0;
+    _maxHeight = CGRectGetHeight(self.frame);
+    _touchesStartedOnSelf = NO;
+    _tapToExpand = NO;
+    _compensateBottomScrollingArea = NO;
+    _resizingEnabled = YES;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
     return NO;
 }
+
 - (void)didTap:(id)sender
 {
-    NSLog(@"hi mom!");
-    CGPoint newOffset =_attachedScrollView.contentOffset;
+    CGPoint newOffset = self.attachedScrollView.contentOffset;
     newOffset.y -= self.maxHeight - CGRectGetHeight(self.frame);
     [UIView animateWithDuration:0.2f delay:0.0f options:UIViewAnimationOptionCurveEaseOut animations:^{
-        [_attachedScrollView setContentOffset:newOffset animated:YES];
+        [self.attachedScrollView setContentOffset:newOffset animated:YES];
     } completion:nil];
 }
 - (void)didPan:(id)sender
@@ -61,20 +82,19 @@
     if (_panGestureRecognizer.state == UIGestureRecognizerStateBegan)
     {
         _lastPanLocation = currentLocation;
-        [_attachedScrollView setContentOffset:_attachedScrollView.contentOffset animated:NO];
-
+        [self.attachedScrollView pop_removeAllAnimations];
+        [self.attachedScrollView setContentOffset:self.attachedScrollView.contentOffset animated:NO];
     }
-
 
     if (_panGestureRecognizer.state == UIGestureRecognizerStateChanged)
     {
         CGFloat heightDiff = currentLocation.y - _lastPanLocation.y;
 
-        if (_attachedScrollView.contentOffset.y <= -_attachedScrollView.contentInset.top)
+        if (self.attachedScrollView.contentOffset.y <= -self.attachedScrollView.contentInset.top)
         {
             heightDiff = heightDiff/3;
         }
-        _attachedScrollView.contentOffset = CGPointMake(_attachedScrollView.contentOffset.x, _attachedScrollView.contentOffset.y - heightDiff);
+        self.attachedScrollView.contentOffset = CGPointMake(self.attachedScrollView.contentOffset.x, self.attachedScrollView.contentOffset.y - heightDiff);
     }
 
     if (
@@ -82,18 +102,18 @@
             _panGestureRecognizer.state == UIGestureRecognizerStateCancelled||
             _panGestureRecognizer.state == UIGestureRecognizerStateFailed)
     {
-        if (_attachedScrollView.contentOffset.y <= -_attachedScrollView.contentInset.top)
+        if (self.attachedScrollView.contentOffset.y <= -self.attachedScrollView.contentInset.top)
         {
             _touchesStartedOnSelf = YES;
-            [self _performBounceBackAnimation];
+            [self _performBounceBackToTopAnimation];
         }
         else
         {
             _touchesStartedOnSelf = YES;
             CGPoint velocity = [_panGestureRecognizer velocityInView:self];
 
-            if (_attachedScrollView.bounds.size.width >= _attachedScrollView.contentSize.width) velocity.x = 0;
-            if (_attachedScrollView.bounds.size.height >= _attachedScrollView.contentSize.height) velocity.y = 0;
+            if (self.attachedScrollView.bounds.size.width >= self.attachedScrollView.contentSize.width) velocity.x = 0;
+            //if (self.attachedScrollView.bounds.size.height >= self.attachedScrollView.contentSize.height) velocity.y = 0;
 
             velocity.x = -velocity.x;
             velocity.y = -velocity.y;
@@ -119,37 +139,47 @@
         };
         // write value, get data from Pop, and apply it to the view
         prop.writeBlock = ^(id obj, const CGFloat values[]) {
+
             CGRect tempBounds = [obj bounds];
             tempBounds.origin.x = values[0];
-            CGFloat boundsCheck = values[1] + CGRectGetHeight(self.frame) + _inset;
+            CGFloat topBoundCheck = values[1] + CGRectGetHeight(self.frame) + _inset;
             CGFloat velocityThreshold = ((NSValue *)decayAnimation.velocity).CGPointValue.y / 10.0f * 0.2f;
-            if (boundsCheck < velocityThreshold)
+
+            if (velocityThreshold < 0 && topBoundCheck < velocityThreshold && values[1] < self.maxHeight)
             {
-                [_attachedScrollView pop_removeAllAnimations];
+                [self.attachedScrollView pop_removeAllAnimations];
                 _touchesStartedOnSelf = YES;
-                tempBounds.origin.y = - CGRectGetHeight(self.frame) - _inset + boundsCheck;
+                tempBounds.origin.y = - CGRectGetHeight(self.frame) - _inset + topBoundCheck;
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t) (0.001 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                    [self _performBounceBackAnimation];
+                    [self _performBounceBackToTopAnimation];
+                });
+            }
+            else if (tempBounds.origin.y > _attachedScrollView.contentSize.height - _attachedScrollView.frame.size.height + _attachedScrollView.contentInset.bottom + velocityThreshold)
+            {
+                [self.attachedScrollView pop_removeAllAnimations];
+                _touchesStartedOnSelf = YES;
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t) (0.001 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [self _performBounceBackToBottomAnimation];
                 });
             }
             else
                 tempBounds.origin.y = values[1];
 
+            [self _scrollView:_attachedScrollView offsetChanged:@{@"new":[NSValue valueWithCGSize:CGSizeMake(0.0f, values[1])], @"old":[NSValue valueWithCGSize:CGSizeMake(0.0f, values[1])]}];
             [obj setBounds:tempBounds];
         };
         // dynamics threshold
         prop.threshold = 0.01;
+
     }];
 
     decayAnimation.property = prop;
     decayAnimation.velocity = [NSValue valueWithCGPoint:velocity];
     decayAnimation.completionBlock = ^(POPAnimation *anim, BOOL finished) { if (completionBlock) completionBlock(); };
-    [_attachedScrollView pop_addAnimation:decayAnimation forKey:@"decelerate"];
+    [self.attachedScrollView pop_addAnimation:decayAnimation forKey:@"decelerate"];
 }
-- (void)_performBounceBackAnimation
+- (POPBasicAnimation *)_bounceBackAnimation
 {
-    NSLog(@"bouncing back now");
-
     POPBasicAnimation *basicAnimation = [POPBasicAnimation animation];
     POPAnimatableProperty *prop = [POPAnimatableProperty propertyWithName:@"com.rounak.boundsY" initializer:^(POPMutableAnimatableProperty *prop) {
         prop.readBlock = ^(id obj, CGFloat values[]) {
@@ -166,14 +196,35 @@
         prop.threshold = 0.01;
     }];
     basicAnimation.property = prop;
-    basicAnimation.toValue = [NSValue valueWithCGPoint:CGPointMake(_attachedScrollView.contentOffset.x, - CGRectGetHeight(self.frame) - _inset)];
     basicAnimation.duration = 0.3f;
     basicAnimation.completionBlock = ^(POPAnimation *anim, BOOL finished) {
         _touchesStartedOnSelf = NO;
     };
-    [_attachedScrollView pop_addAnimation:basicAnimation forKey:@"bounceBack"];
+    return basicAnimation;
+
+}
+- (void)_performBounceBackToTopAnimation
+{
+    POPBasicAnimation *basicAnimation = [self _bounceBackAnimation];
+    basicAnimation.toValue = [NSValue valueWithCGPoint:CGPointMake(self.attachedScrollView.contentOffset.x, - CGRectGetHeight(self.frame) - _inset)];
+    [self.attachedScrollView pop_addAnimation:basicAnimation forKey:@"bounceBack"];
 }
 
+- (void)_performBounceBackToBottomAnimation
+{
+    POPBasicAnimation *basicAnimation = [self _bounceBackAnimation];
+
+    if (self.attachedScrollView.contentSize.height < self.attachedScrollView.frame.size.height) //fixes weird jump bug
+    {
+        basicAnimation.toValue = [NSValue valueWithCGPoint:CGPointMake(self.attachedScrollView.contentOffset.x, 0.0f)];
+    }
+    else
+    {
+        basicAnimation.toValue = [NSValue valueWithCGPoint:CGPointMake(self.attachedScrollView.contentOffset.x,self.attachedScrollView.contentSize.height - self.attachedScrollView.bounds.size.height)];
+    }
+
+    [self.attachedScrollView pop_addAnimation:basicAnimation forKey:@"bounceBack"];
+}
 - (BOOL)changeHeightBy:(CGFloat)heightDiff
 {
     CGRect frame = self.frame;
@@ -187,61 +238,143 @@
     else
         frame.size.height += heightDiff;
 
-    self.frame = frame;
+    if (self.heightConstraint)
+    {
+        self.heightConstraint.constant = frame.size.height;
+    }
+    else
+    {
+        self.frame = frame;
+    }
+
     
     return YES;
 }
 
 - (void)attachToScrollView:(UIScrollView *)scrollView inset:(CGFloat)inset
 {
+    [self attachToScrollView:scrollView parentView:scrollView.superview inset:inset];
+}
+- (void)attachToScrollView:(UIScrollView *)scrollView parentView:(UIView *)parentView inset:(CGFloat)inset
+{
     _inset = inset;
-    _attachedScrollView = scrollView;
-    [scrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionOld context:NULL];
 
     CGRect frame = self.frame;
-    frame.origin.x = scrollView.frame.origin.x;
-    frame.origin.y = scrollView.frame.origin.y + inset;
-    frame.size.width = CGRectGetWidth(scrollView.frame);
+    frame.origin.x = parentView.frame.origin.x;
+    frame.origin.y = parentView.frame.origin.y + inset;
+    frame.size.width = CGRectGetWidth(parentView.frame);
     self.frame = frame;
 
+    [parentView addSubview:self];
 
-    [scrollView.superview addSubview:self];
-    UIEdgeInsets contentInset = scrollView.contentInset;
-    contentInset.top = CGRectGetHeight(self.frame);
-    scrollView.contentInset = contentInset;
-    scrollView.scrollIndicatorInsets = contentInset;
+    self.attachedScrollView = scrollView;
+
+}
+
+- (void)setAttachedScrollView:(UIScrollView *)attachedScrollView
+{
+    if (_attachedScrollView)
+    {
+        _attachedScrollView.delegate = _originalScrollViewDelegate==[NSNull null] ? nil : _originalScrollViewDelegate;
+        [_attachedScrollView removeObserver:self forKeyPath:@"contentOffset"];
+    }
+    _attachedScrollView = attachedScrollView;
+    _originalScrollViewDelegate = _attachedScrollView.delegate ? _attachedScrollView.delegate : [NSNull null];
+    _delegateProxy = [[HTDelegateProxy alloc] initWithDelegates:@[_originalScrollViewDelegate, self]];
+
+    _attachedScrollView.delegate = (id<UIScrollViewDelegate>)_delegateProxy;
+
+    UIEdgeInsets contentInset = attachedScrollView.contentInset;
+    contentInset.top = self.maxHeight;
+    attachedScrollView.contentInset = contentInset;
+    attachedScrollView.scrollIndicatorInsets = contentInset;
+    attachedScrollView.contentOffset = CGPointMake(attachedScrollView.contentOffset.x, -CGRectGetHeight(self.frame));
+    [attachedScrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionOld|NSKeyValueObservingOptionNew context:NULL];
+    [attachedScrollView addObserver:self forKeyPath:@"contentSize" options:NSKeyValueObservingOptionOld|NSKeyValueObservingOptionNew context:NULL];
+    [self _scrollView:attachedScrollView sizeChanged:@{@"new":[NSValue valueWithCGSize:attachedScrollView.contentSize]}];
+
+    _minOffset = 0.0f;
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
     UIScrollView *scrollView = object;
 
-    NSValue *value = [change valueForKey:@"old"];
-    CGFloat oldYOffset = value.CGPointValue.y;
-    CGFloat newYOffset = scrollView.contentOffset.y;
+    if ([keyPath isEqualToString:@"contentOffset"])
+    {
+        [self _scrollView:scrollView offsetChanged:change];
+    }
+
+    if ([keyPath isEqualToString:@"contentSize"])
+    {
+        [self _scrollView:scrollView sizeChanged:change];
+    }
+}
+
+- (void)_scrollView:(UIScrollView *)scrollView offsetChanged:(NSDictionary *)change
+{
+    if (!self.resizingEnabled) return;
+
+    NSValue *oldValue = [change valueForKey:@"old"];
+    NSValue *newValue = [change valueForKey:@"new"];
+
+    CGFloat oldYOffset = oldValue.CGPointValue.y;
+    CGFloat newYOffset = newValue.CGPointValue.y;
     CGFloat offsetDiff = oldYOffset-newYOffset;
 
     CGRect frame = self.frame;
     frame.origin.y = newYOffset + _inset;
     //self.frame = frame;
 
-    if (_touchesStartedOnSelf)
+    if (newYOffset > scrollView.contentSize.height - scrollView.frame.size.height + scrollView.contentInset.bottom)
     {
-        [_attachedScrollView pop_removeAllAnimations];
-        return;
+        //bouncing at the bottom; do nothing
     }
 
-    if(scrollView.contentOffset.y <= -scrollView.contentInset.top)
+    CGFloat relativePosition = newYOffset + self.maxHeight - self.minOffset;
+    CGFloat heightCheck = self.maxHeight - relativePosition;
+
+    if (relativePosition >= 0.0f)
     {
-        [self changeHeightBy:self.maxHeight - CGRectGetHeight(frame)];
+        if (heightCheck < self.minHeight)
+            self.heightConstraint.constant = self.minHeight;
+        else
+            self.heightConstraint.constant = self.maxHeight - relativePosition;
+    }
+    else
+        self.heightConstraint.constant = self.maxHeight;
+
+
+}
+
+- (void)_scrollView:(UIScrollView *)scrollView sizeChanged:(NSDictionary *)change
+{
+    if (!self.resizingEnabled) return;
+
+    NSValue *newValue = [change valueForKey:@"new"];
+
+    UIEdgeInsets contentInset = scrollView.contentInset;
+
+    if (scrollView.contentSize.height < scrollView.frame.size.height)
+    {
+        contentInset.bottom = (scrollView.frame.size.height - newValue.CGSizeValue.height) ;
     }
     else
     {
-        [self changeHeightBy:offsetDiff];
+        contentInset.bottom = (_compensateBottomScrollingArea ? self.maxHeight : 0.0f);
     }
-    if( scrollView.contentOffset.y > scrollView.contentSize.height - scrollView.frame.size.height + scrollView.contentInset.bottom )
-    {
-        NSLog( @"bounce right" );
-    }
+
+    scrollView.contentInset = contentInset;
+
 }
+
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
+{
+    [self.attachedScrollView pop_removeAllAnimations];
+}
+- (void)dealloc
+{
+    [self.attachedScrollView removeObserver:self forKeyPath:@"contentOffset"];
+}
+
 @end
