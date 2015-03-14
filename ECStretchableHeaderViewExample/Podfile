@@ -1,1 +1,1 @@
-pod 'ECStretchableHeaderView'
+pod 'ECStretchableHeaderView', :git => 'https://github.com/ericcastro/ECStretchableHeaderView.git', :commit => '15ce37f2d944487c7a4d6a68c71d793ba9765f64'

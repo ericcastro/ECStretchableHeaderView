@@ -7,8 +7,14 @@
 //
 
 #import "ViewController.h"
+#import "ECStretchableHeaderView.h"
 
 @interface ViewController ()
+
+@property (weak, nonatomic) IBOutlet ECStretchableHeaderView *headerView;
+@property (weak, nonatomic) IBOutlet UITableView *tableView;
+@property (weak, nonatomic) IBOutlet NSLayoutConstraint *headerViewHeightConstraint;
+
 
 @end
 
@@ -16,7 +22,12 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    // Do any additional setup after loading the view.
+    self.headerView.maxHeight = 320;
+    self.headerView.minHeight = 100;
+    self.headerView.layer.borderColor = [UIColor redColor].CGColor;
+    self.headerView.layer.borderWidth = 3.0f;
+    self.headerView.heightConstraint = self.headerViewHeightConstraint;
+    [self.headerView attachToScrollView:self.tableView inset:100.0f];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -47,7 +58,7 @@
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     UITableViewCell *c = [tableView dequeueReusableCellWithIdentifier:@"CellIdentifier"];
-    c.textLabel.text = [NSString stringWithFormat:@"Item %d", indexPath.row];
+    c.textLabel.text = [NSString stringWithFormat:@"Item %ld", indexPath.row];
     return c;
 }
 
