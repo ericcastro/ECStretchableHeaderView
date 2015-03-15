@@ -12,10 +12,18 @@ Useful when such header isn't fully needed, but might have some buttons or some 
 ```objc
 	ECStretchableHeaderView *headerView;
 
-    headerView = [[ECStretchableHeaderView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, CGRectGetWidth(parentView.frame), maxHeight)];
+    headerView = [[ECStretchableHeaderView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, CGRectGetWidth(self.tableView.frame), maxHeight)];
 
-	headerView.maxHeight = 320;
-    headerView.minHeight = 100;
+	// the header will expand up to 320 pixels tall when scrolling down
+	headerView.maxHeight = 320.0f;
+	
+	// the header will shrink up to 100 pixels tall when scrolling up
+    headerView.minHeight = 100.0f;
+
+    // for demo purposes we programmatically create
+    // a height constraint for the header view 
+    // but more likely you will create it on Interface Builder 
+    // and assign it to a private IBOutlet property
 
 	NSLayoutConstraint *heightConstraint = [NSLayoutConstraint
                                                    constraintWithItem:headerView
@@ -30,12 +38,13 @@ Useful when such header isn't fully needed, but might have some buttons or some 
 
     headerView.heightConstraint = heightConstraint;
 
+    // put it at the top of your table vew
     [headerView attachToScrollView:self.tableView inset:100.0f];
 ```
 
 ## Why do you need to set a height constraint?
 
-Because **ECStretchableHeaderView** is made to be auto-layout friendly, in a way that you can design your header view on your Storyboard, and not let it get your interface builder get full of layout errors and warnings for missing constraints.
+Because **ECStretchableHeaderView** is made to be auto-layout friendly, in a way that you can design your header view on your Storyboard, and not let it get your interface builder be full of layout errors and warnings for missing constraints.
 
 The height of the header varies by modifying this constraint constant, as opposed to changing the view's frame.
 
