@@ -46,7 +46,7 @@ Useful when such header isn't fully needed, but might have some buttons or some 
 
 Because **ECStretchableHeaderView** is made to be auto-layout friendly, in a way that you can design your header view on your Storyboard, and not let it get your interface builder be full of layout errors and warnings for missing constraints.
 
-The height of the header varies by modifying this constraint constant, as opposed to changing the view's frame.
+The height of the header view varies by modifying this constraint constant, as opposed to changing the view's frame.
 
 The example project contains a **ECStretchableHeaderView** that is not created programatically, but instead created in Interface Builder.
 
