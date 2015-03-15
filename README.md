@@ -16,8 +16,8 @@ Useful when such header isn't fully needed, but might have some buttons or some 
 
 	// the header will expand up to 320 pixels tall when scrolling down
 	headerView.maxHeight = 320.0f;
-	
-	// the header will shrink up to 100 pixels tall when scrolling up
+
+	// the header will shrink down to 100 pixels tall when scrolling up
     headerView.minHeight = 100.0f;
 
     // for demo purposes we programmatically create
