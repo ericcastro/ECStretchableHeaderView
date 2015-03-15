@@ -39,7 +39,7 @@ Useful when such header isn't fully needed, but might have some buttons or some 
     headerView.heightConstraint = heightConstraint;
 
     // put it at the top of your table vew
-    [headerView attachToScrollView:self.tableView inset:100.0f];
+    [headerView attachToScrollView:self.tableView inset:0.0f];
 ```
 
 ## Why do you need to set a height constraint?
