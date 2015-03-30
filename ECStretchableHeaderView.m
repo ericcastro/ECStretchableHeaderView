@@ -374,6 +374,7 @@
 }
 - (void)dealloc
 {
+    [self.attachedScrollView removeObserver:self forKeyPath:@"contentSize"];
     [self.attachedScrollView removeObserver:self forKeyPath:@"contentOffset"];
 }
 
