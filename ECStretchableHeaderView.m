@@ -5,8 +5,8 @@
 //  Created by Eric Castro on 30/07/14.
 //  Copyright (c) 2014 cast.ro. All rights reserved.
 //
-#import <POP.h>
-#import <HTDelegateProxy.h>
+#import <pop/POP.h>
+#import <HTDelegateProxy/HTDelegateProxy.h>
 
 #import "ECStretchableHeaderView.h"
 
